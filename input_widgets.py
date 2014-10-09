@@ -1,5 +1,5 @@
 from PyQt4.QtGui import QWidget, QGridLayout, QGroupBox, QDoubleSpinBox, QValidator, QSpinBox, QHBoxLayout, QLabel, \
-    QVBoxLayout, QPushButton, QApplication
+    QVBoxLayout, QPushButton, QApplication, QLineEdit, QFileDialog
 import numpy as np
 
 
@@ -42,7 +42,7 @@ class SciDoubleSpinBox(QDoubleSpinBox):
         return float(s)
 
 class ArrayWidget(QGroupBox):
-    def __init__(self, start=0, stop=10, count=1, name=None, min=None, max=None, max_steps=None, parent=None):
+    def __init__(self, name=None, start=0, stop=10, step=1, min=None, max=None, max_steps=None, parent=None):
         super(ArrayWidget, self).__init__(name, parent)
         layout = QGridLayout(self)
         self.start_widget = SciDoubleSpinBox(start, min, max)
@@ -84,11 +84,44 @@ class ArrayWidget(QGroupBox):
         step = self.step_widget.value()
         return np.arange(start, stop, step)
 
+class FileWidget(QWidget):
+    def __init__(self, path="", parent=None):
+        super(FileWidget, self).__init__(parent)
+        layout = QHBoxLayout(self)
+        browse_button = QPushButton("File Path")
+        self.line_edit = QLineEdit(path)
+        layout.addWidget(browse_button)
+        layout.addWidget(self.line_edit)
+        browse_button.clicked.connect(self.set_path)
+
+    def set_path(self):
+        self.line_edit.setText(QFileDialog.getSaveFileName())
+
+    def get_path(self):
+        return self.line_edit.text()
+
+class H5FileWidget(QWidget):
+    def __init__(self, path="", parent=None):
+        super(FileWidget, self).__init__(parent)
+        layout = QVBoxLayout(self)
+        self.file_widget = FileWidget(path)
+        dataset_button = QPushButton("Dataset")
+        self.line_edit = QLineEdit(path)
+        layout.addWidget(dataset_button)
+        layout.addWidget(self.line_edit)
+        dataset_button.clicked.connect(self.set_dataset)
+
+    def set_dataset(self):
+        self.line_edit.setText(QFileDialog.getSaveFileName())
+
+    def get_path(self):
+        return self.line_edit.text()
+
 if __name__ == '__main__':
     app = QApplication([])
     w = QWidget()
     l = QVBoxLayout(w)
-    aw = ArrayWidget('Test Array', 1e-5, 1e9)
+    aw = ArrayWidget('Test Array', 0, 100, 5, 1e-5, 1e9)
     b = QPushButton("Get Array")
     def print_array():
         print aw.get_array()
