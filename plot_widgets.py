@@ -1,7 +1,11 @@
 from PyQt4 import QtGui, QtCore
 import warnings
+import numpy as np
 import pyqtgraph as pg
+pg.setConfigOption("useWeave", False)
 from pyqtgraph.dockarea import Dock, DockArea
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg, NavigationToolbar2QTAgg
 
 class CrosshairPlotWidget(pg.PlotWidget):
     crosshair_moved = QtCore.pyqtSignal(float, float)
@@ -312,8 +316,66 @@ class CrossSectionDock(CloseableDock):
         if mouse_event.double():
             self.toggle_cross_section()
 
+class BackendSwitchableDock(CloseableDock):
+    def __init__(self, *args, **kwargs):
+        super(BackendSwitchableDock, self).__init__(*args, **kwargs)
+        style = QtGui.QStyleFactory().create("windows")
+        icon = style.standardIcon(QtGui.QStyle.SP_BrowserReload)
+        switch_button = QtGui.QPushButton(icon, "", self)
+        switch_button.clicked.connect(lambda: self.widgets[0].toggle_backend())
+        switch_button.setGeometry(20, 0, 20, 20)
+        switch_button.raise_()
+
+class MPLPlotWidget(QtGui.QWidget):
+    def __init__(self):
+        super(MPLPlotWidget, self).__init__()
+        layout = QtGui.QVBoxLayout(self)
+        fig = Figure()
+        self.axes = fig.add_subplot(111)
+        self.axes.hold(False)
+        self.canvas = FigureCanvasQTAgg(fig)
+        self.navbar = NavigationToolbar2QTAgg(self.canvas, self)
+        layout.addWidget(self.canvas)
+        layout.addWidget(self.navbar)
+        #self.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+
+    def set_data(self, data):
+        self.axes.plot(data)
+
+class MPLImageView(MPLPlotWidget):
+    def set_data(self, data):
+        self.axes.imshow(data, interpolation='nearest', aspect='auto')
 
 
+class BackendSwitchablePlot(QtGui.QWidget):
+    MPLWidget = MPLPlotWidget
+    PGWidget = CrosshairPlotWidget
+    def __init__(self):
+        super(BackendSwitchablePlot, self).__init__()
+        layout = QtGui.QVBoxLayout(self)
+        self.widget = self.MPLWidget()
+        layout.addWidget(self.widget)
+        self.is_mpl = True
+        self._data = None
+
+    def set_data(self, data):
+        self._data = data
+        self.widget.set_data(data)
+
+    def toggle_backend(self):
+        self.widget.setParent(None)
+        if self.is_mpl:
+            self.widget = self.PGWidget()
+        else:
+            self.widget = self.MPLWidget()
+        self.is_mpl = not self.is_mpl
+        if self._data is not None:
+            self.widget.set_data(self._data)
+        self.layout().addWidget(self.widget)
+
+class BackendSwitchableImageView(BackendSwitchablePlot):
+    MPLWidget = MPLImageView
+    PGWidget = CrossSectionImageView
 
 
 if __name__ == '__main__':
